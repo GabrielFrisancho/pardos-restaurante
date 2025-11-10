@@ -22,7 +22,7 @@ def iniciar_orquestacion(event, context):
             print("Error: orderId no encontrado en el evento")
             return {'status': 'ERROR', 'reason': 'orderId missing'}
         
-        state_machine_arn = get_step_function_arn()
+        state_machine_arn = "arn:aws:states:us-east-1:213965374161:stateMachine:PardosOrderWorkflow"
         
         execution_response = stepfunctions.start_execution(
             stateMachineArn=state_machine_arn,
@@ -69,9 +69,6 @@ def iniciar_orquestacion(event, context):
             'statusCode': 500,
             'body': json.dumps({'error': str(e)})
         }
-
-def get_step_function_arn():
-    return "arn:aws:states:us-east-1:213965374161:stateMachine:PardosOrderWorkflow"
 
 def actualizar_estado_pedido(tenant_id, order_id, nuevo_estado):
     try:
