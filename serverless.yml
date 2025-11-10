@@ -130,37 +130,52 @@ resources:
       Properties:
         StateMachineName: PardosOrderWorkflow
         RoleArn: arn:aws:iam::213965374161:role/LabRole
-        DefinitionString: !Sub |
-          {
-            "Comment": "Flujo de trabajo de pedidos Pardos Chicken",
-            "StartAt": "Cooking",
-            "States": {
-              "Cooking": {
-                "Type": "Task",
-                "Resource": "${CookingLambda.Arn}",
-                "Next": "Packaging",
-                "TimeoutSeconds": 1800,
-                "ResultPath": "$.cookingResult"
-              },
-              "Packaging": {
-                "Type": "Task",
-                "Resource": "${PackagingLambda.Arn}",
-                "Next": "Delivery",
-                "TimeoutSeconds": 900,
-                "ResultPath": "$.packagingResult"
-              },
-              "Delivery": {
-                "Type": "Task",
-                "Resource": "${DeliveryLambda.Arn}",
-                "Next": "Delivered",
-                "TimeoutSeconds": 3600,
-                "ResultPath": "$.deliveryResult"
-              },
-              "Delivered": {
-                "Type": "Task",
-                "Resource": "${DeliveredLambda.Arn}",
-                "End": true,
-                "ResultPath": "$.deliveredResult"
+        DefinitionString: 
+          Fn::Sub: |
+            {
+              "Comment": "Flujo de trabajo de pedidos Pardos Chicken",
+              "StartAt": "Cooking",
+              "States": {
+                "Cooking": {
+                  "Type": "Task",
+                  "Resource": "${CookingLambdaArn}",
+                  "Next": "Packaging",
+                  "TimeoutSeconds": 1800,
+                  "ResultPath": "$.cookingResult"
+                },
+                "Packaging": {
+                  "Type": "Task",
+                  "Resource": "${PackagingLambdaArn}",
+                  "Next": "Delivery",
+                  "TimeoutSeconds": 900,
+                  "ResultPath": "$.packagingResult"
+                },
+                "Delivery": {
+                  "Type": "Task",
+                  "Resource": "${DeliveryLambdaArn}",
+                  "Next": "Delivered",
+                  "TimeoutSeconds": 3600,
+                  "ResultPath": "$.deliveryResult"
+                },
+                "Delivered": {
+                  "Type": "Task",
+                  "Resource": "${DeliveredLambdaArn}",
+                  "End": true,
+                  "ResultPath": "$.deliveredResult"
+                }
               }
             }
-          }
+
+  Outputs:
+    CookingLambdaArn:
+      Value:
+        Fn::GetAtt: [CookingLambdaLambdaFunction, Arn]
+    PackagingLambdaArn:
+      Value:
+        Fn::GetAtt: [PackagingLambdaLambdaFunction, Arn]
+    DeliveryLambdaArn:
+      Value:
+        Fn::GetAtt: [DeliveryLambdaLambdaFunction, Arn]
+    DeliveredLambdaArn:
+      Value:
+        Fn::GetAtt: [DeliveredLambdaLambdaFunction, Arn]
