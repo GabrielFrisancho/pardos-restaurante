@@ -23,6 +23,7 @@ provider:
     EVENT_BUS_NAME: pardos-restaurante-${sls:stage}-event-bus
 
 functions:
+  # ORQUESTADOR MS - Escucha eventos de api-clientes
   iniciarOrquestacion:
     handler: orquestador/handler.iniciar_orquestacion
     events:
@@ -34,18 +35,7 @@ functions:
             detail-type:
               - OrderCreated
 
-  cookingLambda:
-    handler: etapas/handler.cooking_stage
-
-  packagingLambda:
-    handler: etapas/handler.packaging_stage
-
-  deliveryLambda:
-    handler: etapas/handler.delivery_stage
-
-  deliveredLambda:
-    handler: etapas/handler.delivered_stage
-
+  # ETAPAS MS - Endpoints manuales
   iniciarEtapa:
     handler: etapas/handler.iniciar_etapa
     events:
@@ -53,6 +43,7 @@ functions:
           path: /etapas/iniciar
           method: post
           cors: true
+          integration: lambda # Como en tu ejemplo
 
   completarEtapa:
     handler: etapas/handler.completar_etapa
@@ -61,7 +52,9 @@ functions:
           path: /etapas/completar
           method: post
           cors: true
+          integration: lambda # Como en tu ejemplo
 
+  # DASHBOARD MS
   obtenerResumen:
     handler: dashboard/handler.obtener_resumen
     events:
@@ -69,6 +62,7 @@ functions:
           path: /dashboard/resumen
           method: get
           cors: true
+          integration: lambda
 
   obtenerMetricas:
     handler: dashboard/handler.obtener_metricas
@@ -77,6 +71,7 @@ functions:
           path: /dashboard/metricas
           method: get
           cors: true
+          integration: lambda
 
   obtenerPedidos:
     handler: dashboard/handler.obtener_pedidos
@@ -85,6 +80,7 @@ functions:
           path: /dashboard/pedidos
           method: get
           cors: true
+          integration: lambda
 
 resources:
   Resources:
@@ -124,58 +120,3 @@ resources:
       Type: AWS::Events::EventBus
       Properties:
         Name: ${self:provider.environment.EVENT_BUS_NAME}
-
-    OrderWorkflow:
-      Type: AWS::StepFunctions::StateMachine
-      Properties:
-        StateMachineName: PardosOrderWorkflow
-        RoleArn: arn:aws:iam::213965374161:role/LabRole
-        DefinitionString: 
-          Fn::Sub: |
-            {
-              "Comment": "Flujo de trabajo de pedidos Pardos Chicken",
-              "StartAt": "Cooking",
-              "States": {
-                "Cooking": {
-                  "Type": "Task",
-                  "Resource": "${CookingLambdaArn}",
-                  "Next": "Packaging",
-                  "TimeoutSeconds": 1800,
-                  "ResultPath": "$.cookingResult"
-                },
-                "Packaging": {
-                  "Type": "Task",
-                  "Resource": "${PackagingLambdaArn}",
-                  "Next": "Delivery",
-                  "TimeoutSeconds": 900,
-                  "ResultPath": "$.packagingResult"
-                },
-                "Delivery": {
-                  "Type": "Task",
-                  "Resource": "${DeliveryLambdaArn}",
-                  "Next": "Delivered",
-                  "TimeoutSeconds": 3600,
-                  "ResultPath": "$.deliveryResult"
-                },
-                "Delivered": {
-                  "Type": "Task",
-                  "Resource": "${DeliveredLambdaArn}",
-                  "End": true,
-                  "ResultPath": "$.deliveredResult"
-                }
-              }
-            }
-
-  Outputs:
-    CookingLambdaArn:
-      Value:
-        Fn::GetAtt: [CookingLambdaLambdaFunction, Arn]
-    PackagingLambdaArn:
-      Value:
-        Fn::GetAtt: [PackagingLambdaLambdaFunction, Arn]
-    DeliveryLambdaArn:
-      Value:
-        Fn::GetAtt: [DeliveryLambdaLambdaFunction, Arn]
-    DeliveredLambdaArn:
-      Value:
-        Fn::GetAtt: [DeliveredLambdaLambdaFunction, Arn]
