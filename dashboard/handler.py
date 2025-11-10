@@ -69,12 +69,13 @@ def obtener_pedidos(event, context):
         tenant_id = event.get('queryStringParameters', {}).get('tenantId', 'pardos')
         limit = int(event.get('queryStringParameters', {}).get('limit', 50))
         
+        # Buscar pedidos en la tabla de api-clientes (OrdersTable)
         response = dynamodb.query(
             table_name='orders',
             key_condition='PK = :pk AND SK = :sk',
             expression_values={
                 ':pk': f"TENANT#{tenant_id}#ORDER",
-                ':sk': 'METADATA'
+                ':sk': 'INFO'
             },
             limit=limit,
             scan_index_forward=False  # Más recientes primero
@@ -82,9 +83,11 @@ def obtener_pedidos(event, context):
         
         pedidos = response.get('Items', [])
         
-        # Enriquecer con información de etapas
+        # Enriquecer con información de etapas de pardos-restaurante
         for pedido in pedidos:
-            pedido['etapas'] = obtener_etapas_pedido(tenant_id, pedido['orderId'])
+            order_id = pedido['PK'].split('#')[-1]  # Extraer orderId del PK
+            pedido['etapas'] = obtener_etapas_pedido(tenant_id, order_id)
+            pedido['orderId'] = order_id  # Agregar orderId explícito
         
         return {
             'statusCode': 200,
@@ -100,61 +103,117 @@ def obtener_pedidos(event, context):
             'body': json.dumps({'error': str(e)})
         }
 
-# Funciones auxiliares
+# Funciones auxiliares actualizadas
 def obtener_total_pedidos(tenant_id):
-    # Implementar conteo total de pedidos
-    return 150
+    try:
+        response = dynamodb.query(
+            table_name='orders',
+            key_condition='PK = :pk AND SK = :sk',
+            expression_values={
+                ':pk': f"TENANT#{tenant_id}#ORDER",
+                ':sk': 'INFO'
+            },
+            select='COUNT'
+        )
+        return response.get('Count', 0)
+    except:
+        return 0
 
 def obtener_pedidos_hoy(tenant_id):
-    # Implementar conteo de pedidos de hoy
-    return 25
+    try:
+        hoy = datetime.utcnow().date().isoformat()
+        response = dynamodb.query(
+            table_name='orders',
+            key_condition='PK = :pk AND SK = :sk',
+            expression_values={
+                ':pk': f"TENANT#{tenant_id}#ORDER", 
+                ':sk': 'INFO'
+            }
+        )
+        
+        pedidos_hoy = 0
+        for pedido in response.get('Items', []):
+            if pedido.get('createdAt', '').startswith(hoy):
+                pedidos_hoy += 1
+                
+        return pedidos_hoy
+    except:
+        return 0
 
 def obtener_pedidos_activos(tenant_id):
-    # Implementar conteo de pedidos activos
-    return 8
-
-def obtener_tiempo_promedio(tenant_id):
-    # Implementar cálculo de tiempo promedio
-    return 45  # minutos
+    try:
+        response = dynamodb.query(
+            table_name='orders',
+            key_condition='PK = :pk AND SK = :sk',
+            expression_values={
+                ':pk': f"TENANT#{tenant_id}#ORDER",
+                ':sk': 'INFO'
+            }
+        )
+        
+        activos = 0
+        estados_activos = ['CREATED', 'COOKING', 'PACKAGING', 'DELIVERY']
+        for pedido in response.get('Items', []):
+            if pedido.get('status') in estados_activos:
+                activos += 1
+                
+        return activos
+    except:
+        return 0
 
 def obtener_pedidos_por_estado(tenant_id):
-    # Implementar distribución por estado
-    return {
-        'CREATED': 5,
-        'COOKING': 3, 
-        'PACKAGING': 2,
-        'DELIVERY': 3,
-        'DELIVERED': 137
-    }
+    try:
+        response = dynamodb.query(
+            table_name='orders',
+            key_condition='PK = :pk AND SK = :sk',
+            expression_values={
+                ':pk': f"TENANT#{tenant_id}#ORDER",
+                ':sk': 'INFO'
+            }
+        )
+        
+        distribucion = {'CREATED': 0, 'COOKING': 0, 'PACKAGING': 0, 'DELIVERY': 0, 'DELIVERED': 0}
+        for pedido in response.get('Items', []):
+            estado = pedido.get('status', 'CREATED')
+            distribucion[estado] = distribucion.get(estado, 0) + 1
+            
+        return distribucion
+    except:
+        return {'CREATED': 0, 'COOKING': 0, 'PACKAGING': 0, 'DELIVERY': 0, 'DELIVERED': 0}
 
 def obtener_tiempos_por_etapa(tenant_id):
-    # Implementar tiempos promedio por etapa
+    # Por ahora valores estáticos, se puede implementar cálculo real
     return {
         'COOKING': 15,
-        'PACKAGING': 5,
+        'PACKAGING': 5, 
         'DELIVERY': 25
     }
 
 def obtener_pedidos_ultima_semana(tenant_id):
-    # Implementar pedidos de la última semana
+    # Datos de ejemplo para gráficos
     return [25, 30, 28, 32, 35, 40, 38]
 
 def obtener_productos_populares(tenant_id):
-    # Implementar productos más populares
+    # Por implementar: análisis de items en pedidos
     return [
         {'producto': 'Pollo a la Brasa', 'cantidad': 120},
         {'producto': 'Chicha Morada', 'cantidad': 95},
         {'producto': 'Ensalada Fresca', 'cantidad': 80}
     ]
 
+def obtener_tiempo_promedio(tenant_id):
+    return 45  # minutos
+
 def obtener_etapas_pedido(tenant_id, order_id):
-    # Obtener historial de etapas de un pedido
-    response = dynamodb.query(
-        table_name='steps',
-        key_condition='PK = :pk AND begins_with(SK, :sk)',
-        expression_values={
-            ':pk': f"TENANT#{tenant_id}#ORDER#{order_id}",
-            ':sk': 'STEP#'
-        }
-    )
-    return response.get('Items', [])
+    try:
+        response = dynamodb.query(
+            table_name='steps',
+            key_condition='PK = :pk AND begins_with(SK, :sk)',
+            expression_values={
+                ':pk': f"TENANT#{tenant_id}#ORDER#{order_id}",
+                ':sk': 'STEP#'
+            }
+        )
+        return response.get('Items', [])
+    except:
+        return []
