@@ -1,0 +1,30 @@
+{
+  "name": "pardos-restaurante",
+  "version": "1.0.0",
+  "description": "Backend serverless para restaurante Pardos Chicken",
+  "main": "handler.py",
+  "scripts": {
+    "deploy": "serverless deploy",
+    "deploy:dev": "serverless deploy --stage dev",
+    "deploy:prod": "serverless deploy --stage prod",
+    "remove": "serverless remove",
+    "logs": "serverless logs -t",
+    "test": "python -m pytest tests/ -v",
+    "package": "serverless package"
+  },
+  "keywords": [
+    "serverless",
+    "aws",
+    "python",
+    "pardos",
+    "restaurante"
+  ],
+  "author": "Gabriel Frisancho",
+  "license": "MIT",
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-python-requirements": "^6.1.1",
+    "serverless-iam-roles-per-function": "^3.2.0"
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,127 @@
+org: gabrielfrisancho
+service: pardos-restaurante
+
+provider:
+  name: aws
+  runtime: python3.13
+  region: us-east-1
+  timeout: 30
+  iam:
+    role: arn:aws:iam::213965374161:role/LabRole
+  environment:
+    ORDERS_TABLE: ${self:service}-${sls:stage}-orders
+    STEPS_TABLE: ${self:service}-${sls:stage}-steps
+    EVENT_BUS_NAME: ${self:service}-${sls:stage}-event-bus
+
+custom:
+  ordersTable: ${self:service}-${sls:stage}-orders
+  stepsTable: ${self:service}-${sls:stage}-steps
+
+resources:
+  Resources:
+    OrdersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.ordersTable}
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    StepsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.stepsTable}
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    EventBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:provider.environment.EVENT_BUS_NAME}
+
+functions:
+  # ORQUESTADOR MS
+  iniciarOrquestacion:
+    handler: orquestador/handler.iniciar_orquestacion
+    events:
+      - eventBridge:
+          eventBus: ${self:provider.environment.EVENT_BUS_NAME}
+          pattern:
+            source:
+              - pardos.cliente
+            detail-type:
+              - OrderCreated
+
+  stepFunctionOrchestrator:
+    handler: orquestador/handler.ejecutar_step_function
+
+  # ETAPAS MS
+  iniciarEtapa:
+    handler: etapas/handler.iniciar_etapa
+    events:
+      - http:
+          path: /etapas/iniciar
+          method: post
+          cors: true
+
+  completarEtapa:
+    handler: etapas/handler.completar_etapa
+    events:
+      - http:
+          path: /etapas/completar
+          method: post
+          cors: true
+
+  procesarEventoEtapa:
+    handler: etapas/handler.procesar_evento_etapa
+    events:
+      - eventBridge:
+          eventBus: ${self:provider.environment.EVENT_BUS_NAME}
+          pattern:
+            source:
+              - pardos.orquestador
+            detail-type:
+              - StageStarted
+              - StageCompleted
+
+  # DASHBOARD MS
+  obtenerResumen:
+    handler: dashboard/handler.obtener_resumen
+    events:
+      - http:
+          path: /dashboard/resumen
+          method: get
+          cors: true
+
+  obtenerMetricas:
+    handler: dashboard/handler.obtener_metricas
+    events:
+      - http:
+          path: /dashboard/metricas
+          method: get
+          cors: true
+
+  obtenerPedidos:
+    handler: dashboard/handler.obtener_pedidos
+    events:
+      - http:
+          path: /dashboard/pedidos
+          method: get
+          cors: true
