@@ -23,7 +23,6 @@ provider:
     EVENT_BUS_NAME: pardos-restaurante-${sls:stage}-event-bus
 
 functions:
-  # ORQUESTADOR MS - Escucha eventos de api-clientes
   iniciarOrquestacion:
     handler: orquestador/handler.iniciar_orquestacion
     events:
@@ -35,17 +34,18 @@ functions:
             detail-type:
               - OrderCreated
 
-  # LAMBDAS PARA STEP FUNCTIONS (según tu diagrama)
   cookingLambda:
     handler: etapas/handler.cooking_stage
+
   packagingLambda:
-    handler: etapas/handler.packaging_stage  
+    handler: etapas/handler.packaging_stage
+
   deliveryLambda:
     handler: etapas/handler.delivery_stage
+
   deliveredLambda:
     handler: etapas/handler.delivered_stage
 
-  # ETAPAS MS - Endpoints manuales
   iniciarEtapa:
     handler: etapas/handler.iniciar_etapa
     events:
@@ -62,7 +62,6 @@ functions:
           method: post
           cors: true
 
-  # DASHBOARD MS
   obtenerResumen:
     handler: dashboard/handler.obtener_resumen
     events:
@@ -126,7 +125,6 @@ resources:
       Properties:
         Name: ${self:provider.environment.EVENT_BUS_NAME}
 
-    # STEP FUNCTION DEFINITION
     OrderWorkflow:
       Type: AWS::StepFunctions::StateMachine
       Properties:
@@ -147,7 +145,7 @@ resources:
               "Packaging": {
                 "Type": "Task",
                 "Resource": "${PackagingLambda.Arn}",
-                "Next": "Delivery", 
+                "Next": "Delivery",
                 "TimeoutSeconds": 900,
                 "ResultPath": "$.packagingResult"
               },
@@ -159,7 +157,7 @@ resources:
                 "ResultPath": "$.deliveryResult"
               },
               "Delivered": {
-                "Type": "Task", 
+                "Type": "Task",
                 "Resource": "${DeliveredLambda.Arn}",
                 "End": true,
                 "ResultPath": "$.deliveredResult"
