@@ -43,7 +43,7 @@ functions:
           path: /etapas/iniciar
           method: post
           cors: true
-          integration: lambda # Como en tu ejemplo
+          integration: lambda
 
   completarEtapa:
     handler: etapas/handler.completar_etapa
@@ -52,7 +52,7 @@ functions:
           path: /etapas/completar
           method: post
           cors: true
-          integration: lambda # Como en tu ejemplo
+          integration: lambda
 
   # DASHBOARD MS
   obtenerResumen:
@@ -120,3 +120,4 @@ resources:
       Type: AWS::Events::EventBus
       Properties:
         Name: ${self:provider.environment.EVENT_BUS_NAME}
+
