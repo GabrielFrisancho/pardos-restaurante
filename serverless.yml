@@ -1,60 +1,27 @@
 org: gabrielfrisancho
 service: pardos-restaurante
 
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    pythonBin: python3
+    dockerizePip: true
+  ordersTable: pardos-restaurante-${sls:stage}-orders
+  stepsTable: pardos-restaurante-${sls:stage}-steps
+
 provider:
   name: aws
   runtime: python3.13
   region: us-east-1
-  timeout: 30
+  timeout: 29
   iam:
     role: arn:aws:iam::213965374161:role/LabRole
   environment:
-    ORDERS_TABLE: ${self:service}-${sls:stage}-orders
-    STEPS_TABLE: ${self:service}-${sls:stage}-steps
-    EVENT_BUS_NAME: ${self:service}-${sls:stage}-event-bus
-
-custom:
-  ordersTable: ${self:service}-${sls:stage}-orders
-  stepsTable: ${self:service}-${sls:stage}-steps
-
-resources:
-  Resources:
-    OrdersTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:custom.ordersTable}
-        AttributeDefinitions:
-          - AttributeName: PK
-            AttributeType: S
-          - AttributeName: SK
-            AttributeType: S
-        KeySchema:
-          - AttributeName: PK
-            KeyType: HASH
-          - AttributeName: SK
-            KeyType: RANGE
-        BillingMode: PAY_PER_REQUEST
-
-    StepsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:custom.stepsTable}
-        AttributeDefinitions:
-          - AttributeName: PK
-            AttributeType: S
-          - AttributeName: SK
-            AttributeType: S
-        KeySchema:
-          - AttributeName: PK
-            KeyType: HASH
-          - AttributeName: SK
-            KeyType: RANGE
-        BillingMode: PAY_PER_REQUEST
-
-    EventBus:
-      Type: AWS::Events::EventBus
-      Properties:
-        Name: ${self:provider.environment.EVENT_BUS_NAME}
+    ORDERS_TABLE: ${self:custom.ordersTable}
+    STEPS_TABLE: ${self:custom.stepsTable}
+    EVENT_BUS_NAME: pardos-restaurante-${sls:stage}-event-bus
 
 functions:
   # ORQUESTADOR MS
@@ -65,7 +32,7 @@ functions:
           eventBus: ${self:provider.environment.EVENT_BUS_NAME}
           pattern:
             source:
-              - pardos.cliente
+              - cliente-ms
             detail-type:
               - OrderCreated
 
@@ -125,3 +92,42 @@ functions:
           path: /dashboard/pedidos
           method: get
           cors: true
+
+resources:
+  Resources:
+    OrdersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.ordersTable}
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    StepsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.stepsTable}
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    EventBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:provider.environment.EVENT_BUS_NAME}
