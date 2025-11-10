@@ -40,7 +40,6 @@ class DynamoDB:
         return self.client.update_item(**params)
     
     def query(self, table_name, **kwargs):
-        # Adaptar kwargs para DynamoDB
         if 'expression_values' in kwargs:
             kwargs['ExpressionAttributeValues'] = {
                 k: self.serializer.serialize(v) for k, v in kwargs.pop('expression_values').items()
@@ -51,7 +50,6 @@ class DynamoDB:
             **kwargs
         )
         
-        # Deserializar items
         items = [ {k: self.deserializer.deserialize(v) for k, v in item.items()} for item in response.get('Items', []) ]
         
         return {
