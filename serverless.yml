@@ -1,41 +1,29 @@
 org: gabrielfrisancho
 service: pardos-restaurante
 
-custom:
-  pythonRequirements:
-    pythonBin: python3
-    dockerizePip: false
-    useDownloadCache: false
-    useStaticCache: false
-  ordersTable: pardos-restaurante-${sls:stage}-orders
-  stepsTable: pardos-restaurante-${sls:stage}-steps
-
 provider:
   name: aws
   runtime: python3.13
   region: us-east-1
+  memorySize: 256
   timeout: 29
   iam:
     role: arn:aws:iam::213965374161:role/LabRole
   environment:
-    ORDERS_TABLE: ${self:custom.ordersTable}
-    STEPS_TABLE: ${self:custom.stepsTable}
-    EVENT_BUS_NAME: pardos-restaurante-${sls:stage}-event-bus
+    ORDERS_TABLE: pardos-restaurante-orders
+    STEPS_TABLE: pardos-restaurante-steps
 
 functions:
-  # ORQUESTADOR MS - Escucha eventos de api-clientes
   iniciarOrquestacion:
     handler: orquestador/handler.iniciar_orquestacion
     events:
       - eventBridge:
-          eventBus: ${self:provider.environment.EVENT_BUS_NAME}
           pattern:
             source:
               - cliente-ms
             detail-type:
               - OrderCreated
 
-  # ETAPAS MS - Endpoints manuales
   iniciarEtapa:
     handler: etapas/handler.iniciar_etapa
     events:
@@ -54,7 +42,6 @@ functions:
           cors: true
           integration: lambda
 
-  # DASHBOARD MS
   obtenerResumen:
     handler: dashboard/handler.obtener_resumen
     events:
@@ -87,7 +74,7 @@ resources:
     OrdersTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${self:custom.ordersTable}
+        TableName: pardos-restaurante-orders
         AttributeDefinitions:
           - AttributeName: PK
             AttributeType: S
@@ -103,7 +90,7 @@ resources:
     StepsTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${self:custom.stepsTable}
+        TableName: pardos-restaurante-steps
         AttributeDefinitions:
           - AttributeName: PK
             AttributeType: S
@@ -115,9 +102,3 @@ resources:
           - AttributeName: SK
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
-
-    EventBus:
-      Type: AWS::Events::EventBus
-      Properties:
-        Name: ${self:provider.environment.EVENT_BUS_NAME}
-
