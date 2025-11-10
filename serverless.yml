@@ -1,13 +1,12 @@
 org: gabrielfrisancho
 service: pardos-restaurante
 
-plugins:
-  - serverless-python-requirements
-
 custom:
   pythonRequirements:
     pythonBin: python3
-    dockerizePip: true
+    dockerizePip: false
+    useDownloadCache: false
+    useStaticCache: false
   ordersTable: pardos-restaurante-${sls:stage}-orders
   stepsTable: pardos-restaurante-${sls:stage}-steps
 
@@ -24,7 +23,7 @@ provider:
     EVENT_BUS_NAME: pardos-restaurante-${sls:stage}-event-bus
 
 functions:
-  # ORQUESTADOR MS
+  # ORQUESTADOR MS - Escucha eventos de api-clientes
   iniciarOrquestacion:
     handler: orquestador/handler.iniciar_orquestacion
     events:
@@ -36,10 +35,17 @@ functions:
             detail-type:
               - OrderCreated
 
-  stepFunctionOrchestrator:
-    handler: orquestador/handler.ejecutar_step_function
+  # LAMBDAS PARA STEP FUNCTIONS (según tu diagrama)
+  cookingLambda:
+    handler: etapas/handler.cooking_stage
+  packagingLambda:
+    handler: etapas/handler.packaging_stage  
+  deliveryLambda:
+    handler: etapas/handler.delivery_stage
+  deliveredLambda:
+    handler: etapas/handler.delivered_stage
 
-  # ETAPAS MS
+  # ETAPAS MS - Endpoints manuales
   iniciarEtapa:
     handler: etapas/handler.iniciar_etapa
     events:
@@ -55,18 +61,6 @@ functions:
           path: /etapas/completar
           method: post
           cors: true
-
-  procesarEventoEtapa:
-    handler: etapas/handler.procesar_evento_etapa
-    events:
-      - eventBridge:
-          eventBus: ${self:provider.environment.EVENT_BUS_NAME}
-          pattern:
-            source:
-              - pardos.orquestador
-            detail-type:
-              - StageStarted
-              - StageCompleted
 
   # DASHBOARD MS
   obtenerResumen:
@@ -131,3 +125,44 @@ resources:
       Type: AWS::Events::EventBus
       Properties:
         Name: ${self:provider.environment.EVENT_BUS_NAME}
+
+    # STEP FUNCTION DEFINITION
+    OrderWorkflow:
+      Type: AWS::StepFunctions::StateMachine
+      Properties:
+        StateMachineName: PardosOrderWorkflow
+        RoleArn: arn:aws:iam::213965374161:role/LabRole
+        DefinitionString: !Sub |
+          {
+            "Comment": "Flujo de trabajo de pedidos Pardos Chicken",
+            "StartAt": "Cooking",
+            "States": {
+              "Cooking": {
+                "Type": "Task",
+                "Resource": "${CookingLambda.Arn}",
+                "Next": "Packaging",
+                "TimeoutSeconds": 1800,
+                "ResultPath": "$.cookingResult"
+              },
+              "Packaging": {
+                "Type": "Task",
+                "Resource": "${PackagingLambda.Arn}",
+                "Next": "Delivery", 
+                "TimeoutSeconds": 900,
+                "ResultPath": "$.packagingResult"
+              },
+              "Delivery": {
+                "Type": "Task",
+                "Resource": "${DeliveryLambda.Arn}",
+                "Next": "Delivered",
+                "TimeoutSeconds": 3600,
+                "ResultPath": "$.deliveryResult"
+              },
+              "Delivered": {
+                "Type": "Task", 
+                "Resource": "${DeliveredLambda.Arn}",
+                "End": true,
+                "ResultPath": "$.deliveredResult"
+              }
+            }
+          }
