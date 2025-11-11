@@ -39,17 +39,27 @@ class DynamoDB:
             
         return self.client.update_item(**params)
     
-    def query(self, table_name, **kwargs):
-        if 'expression_values' in kwargs:
-            kwargs['ExpressionAttributeValues'] = {
-                k: self.serializer.serialize(v) for k, v in kwargs.pop('expression_values').items()
-            }
+    def query(self, table_name, key_condition_expression, expression_attribute_values, limit=None, scan_index_forward=None):
+        """Query corregido con parámetros válidos"""
         
-        response = self.client.query(
-            TableName=os.environ[f"{table_name.upper()}_TABLE"],
-            **kwargs
-        )
+        # Serializar valores de expresión
+        serialized_values = {k: self.serializer.serialize(v) for k, v in expression_attribute_values.items()}
         
+        params = {
+            'TableName': os.environ[f"{table_name.upper()}_TABLE"],
+            'KeyConditionExpression': key_condition_expression,
+            'ExpressionAttributeValues': serialized_values
+        }
+        
+        if limit is not None:
+            params['Limit'] = limit
+            
+        if scan_index_forward is not None:
+            params['ScanIndexForward'] = scan_index_forward
+        
+        response = self.client.query(**params)
+        
+        # Deserializar items
         items = [ {k: self.deserializer.deserialize(v) for k, v in item.items()} for item in response.get('Items', []) ]
         
         return {
