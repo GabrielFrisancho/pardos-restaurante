@@ -299,10 +299,11 @@ def completar_etapa(event, context):
         tenant_id = body['tenantId']
         stage = body['stage']
         
+        # Buscar etapa activa - CON PARÁMETROS CORREGIDOS
         response = dynamodb.query(
             table_name='steps',
-            key_condition='PK = :pk AND begins_with(SK, :sk)',
-            expression_values={
+            key_condition_expression='PK = :pk AND begins_with(SK, :sk)',
+            expression_attribute_values={
                 ':pk': f"TENANT#{tenant_id}#ORDER#{order_id}",
                 ':sk': f"STEP#{stage}"
             }
@@ -362,3 +363,4 @@ def calcular_duracion(inicio, fin):
     start = datetime.fromisoformat(inicio.replace('Z', '+00:00'))
     end = datetime.fromisoformat(fin.replace('Z', '+00:00'))
     return int((end - start).total_seconds())
+
